@@ -1,8 +1,9 @@
 import random
 
 TARGET_COLOR = [96, 96, 159]
-START_POPULATION = 200
-PROB_OF_CROSS = 0.5
+START_POPULATION = 40
+PROB_OF_CROSS = 0.9
+ITERATIONS = 1000
 
 
 def gen_color():
@@ -12,17 +13,13 @@ def gen_color():
 def fit(color):
     return sum(abs(color[i] - TARGET_COLOR[i]) for i in range(3))
 
-
-def roulette_wheel_pop(population, probabilities, number):
+# вобрка турниром, k - размер турнира
+def tournament_selection_pop(population, k, number):
     chosen = []
-    for n in range(number):
-        r = random.random()
-        prob_circle = 0
-        for i in range(len(probabilities)):
-            prob_circle += probabilities[i]
-            if r <= prob_circle:
-                chosen.append(population[i])
-                break
+    while len(chosen) < number:
+        participants = random.sample(population, k)
+        winner = min(participants, key=lambda x: fit(x))
+        chosen.append(winner)
     return chosen
 
 
@@ -48,13 +45,10 @@ def pop_to_decimal(population):
         decimal_pop.append(to_decimal(individual))
     return decimal_pop
 
-
-def crossover(parent_1, parent_2):
-    return parent_1[:12] + parent_2[12:]
-
 def crossover_rand(parent_1, parent_2):
     split = random.randint(1, 15)
     return parent_1[:split] + parent_2[split:]
+
 
 def get_uniq_individual(population):
     new_population = []
@@ -68,13 +62,10 @@ def mutation(individual):
     prob_of_mutation = (1 / len(individual))
     result = ''
     for digit in individual:
-        if random.random() >= prob_of_mutation:
+        if random.random() <= prob_of_mutation:
             result += '1' if digit == '0' else '0'
         else:
             result += digit
-    # for i in range(1, 4):
-    #    index = random.randint(8 * (i-1), 8 * i - 1)
-    #    result = result[:index] + ('1' if result[index] == '0' else '0') + result[index + 1:]
     return result
 
 
@@ -93,27 +84,29 @@ def population_crossover(population):
 result_population = []
 for i in range(START_POPULATION):
     result_population.append(gen_color())
-for j in range(1000):
+for j in range(ITERATIONS):
     population_fitness = []
     for i in range(len(result_population)):
         fitness = fit(result_population[i])
-        population_fitness.append(fitness)
-    # fitness prob
+        population_fitness.append( fit(result_population[i]))
+
+    if 0 in population_fitness: break
+
     fitness_prob = []
     for i in range(len(population_fitness)):
         prob = population_fitness[i] / sum(population_fitness)
         fitness_prob.append(prob)
-    population_for_crossover = roulette_wheel_pop(result_population, fitness_prob, START_POPULATION)
+    population_for_crossover = tournament_selection_pop(result_population, 2, START_POPULATION)
     binary_population_for_crossover = pop_to_binary(population_for_crossover)
 
     new_population = population_crossover(binary_population_for_crossover)
-    # to decimal
+
     population_for_crossover = get_uniq_individual(population_for_crossover)
     new_population = pop_to_decimal(new_population)
 
     population_for_crossover.sort(key=fit, reverse=True)
     new_population.sort(key=fit, reverse=True)
-    result_population = population_for_crossover[:6] + new_population[6:]
+    result_population = population_for_crossover[:3] + new_population[3:]
 
     if result_population[0] == TARGET_COLOR:
         break
